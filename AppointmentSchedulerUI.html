@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Appointment Scheduler</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    .status-badge { font-weight: 600; padding: 0.25rem 0.6rem; border-radius: 0.35rem; }
+    .available-badge { background: #d4edda; color: #155724; }
+    .unavailable-badge { background: #f8d7da; color: #721c24; }
+    .slot-preview { margin: .25rem; padding: .35rem .6rem; border-radius: .35rem; display:inline-block; font-size: .9rem; }
+    .slot-available { background: #e9f7ef; color: #0b6b2a; }
+    .slot-booked { background: #fdecea; color: #7a1b12; text-decoration: line-through; opacity: .85; }
+  </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+  <div class="container">
+    <a class="navbar-brand" href="index.html">🏥 Hospital System</a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="nav">
+      <ul class="navbar-nav ms-auto">
+         <li class="nav-item"><a class="nav-link" href="Mainpage.html">Main page</a></li>
+       <li class="nav-item"><a class="nav-link" href="AppointmentSchedulerUI.html">Appointment Scheduler</a></li>
+        <li class="nav-item"><a class="nav-link" href="PharmacyPurchaseOrder.html">Pharmacy Purchase Order</a></li>
+        <li class="nav-item"><a class="nav-link" href="StockTrackingView.html">Inventory Tracking</a></li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<div class="container my-4">
+  <h2 class="mb-3">📅 Appointment Scheduler</h2>
+
+  <div class="row g-3 align-items-end">
+    <div class="col-md-4">
+      <label class="form-label">Patient Name / ID</label>
+      <input id="patientInput" type="text" class="form-control" placeholder="Search or enter patient name">
+    </div>
+
+    <div class="col-md-3">
+      <label class="form-label">Department</label>
+      <select id="deptSelect" class="form-select">
+        <option value="all">All Departments</option>
+        <option value="General Medicine">General Medicine</option>
+        <option value="Cardiology">Cardiology</option>
+        <option value="Orthopedics">Orthopedics</option>
+        <option value="Pediatrics">Pediatrics</option>
+      </select>
+    </div>
+
+    <div class="col-md-5">
+      <label class="form-label">Doctor</label>
+      <select id="doctorSelect" class="form-select"></select>
+    </div>
+  </div>
+
+  <!-- Doctor info & availability -->
+  <div class="row mt-3 g-3">
+    <div class="col-md-6 d-flex align-items-center gap-3">
+      <div>
+        <div class="fw-semibold">Selected Doctor</div>
+        <div id="doctorName" class="fs-5">—</div>
+      </div>
+      <div>
+        <div class="fw-semibold">Availability</div>
+        <div id="availabilityBadge"><span class="status-badge unavailable-badge">Not Selected</span></div>
+      </div>
+    </div>
+
+    <div class="col-md-6">
+      <label class="form-label">Set Doctor Availability</label>
+      <select id="availabilitySelect" class="form-select">
+        <option value="available">Available</option>
+        <option value="not_available">Not Available</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="row mt-3 g-3">
+    <div class="col-md-6">
+      <label class="form-label">Choose Time Slot</label>
+      <select id="timeslotSelect" class="form-select">
+        <option value="">-- Select timeslot --</option>
+      </select>
+      <div class="form-text">Booked slots are shown as “— Booked” and cannot be selected.</div>
+    </div>
+
+    <div class="col-md-6">
+      <label class="form-label">Quick slot preview</label>
+      <div id="slotPreview" class="d-block"></div>
+    </div>
+  </div>
+
+  <div class="row mt-3">
+    <div class="col-md-4">
+      <label class="form-label">Appointment Status</label>
+      <select id="apptStatus" class="form-select">
+        <option>Confirmed</option>
+        <option>Cancelled</option>
+        <option>Rescheduled</option>
+      </select>
+    </div>
+
+    <div class="col-md-8 d-flex gap-2 align-items-end">
+      <button id="bookBtn" class="btn btn-success">Book Appointment</button>
+      <button id="clearBtn" class="btn btn-secondary">Clear</button>
+      <div id="message" class="ms-3"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const doctors = [
+    {
+      id: 1,
+      name: "Dr. Anil Kumar",
+      department: "General Medicine",
+      available: true,
+      timeslots: [
+        { time: "09:00 AM", status: "available" },
+        { time: "09:30 AM", status: "booked" },
+        { time: "10:00 AM", status: "available" },
+        { time: "10:30 AM", status: "available" }
+      ]
+    },
+    {
+      id: 2,
+      name: "Dr. Priya Sharma",
+      department: "Cardiology",
+      available: false,
+      timeslots: [
+        { time: "09:00 AM", status: "booked" },
+        { time: "09:30 AM", status: "booked" },
+        { time: "10:00 AM", status: "booked" },
+        { time: "10:30 AM", status: "booked" }
+      ]
+    },
+    {
+      id: 3,
+      name: "Dr. Rajesh Gupta",
+      department: "Orthopedics",
+      available: true,
+      timeslots: [
+        { time: "11:00 AM", status: "available" },
+        { time: "11:30 AM", status: "available" },
+        { time: "12:00 PM", status: "booked" }
+      ]
+    },
+    {
+      id: 4,
+      name: "Dr. Meera Reddy",
+      department: "Pediatrics",
+      available: true,
+      timeslots: [
+        { time: "02:00 PM", status: "available" },
+        { time: "02:30 PM", status: "booked" },
+        { time: "03:00 PM", status: "available" }
+      ]
+    }
+  ];
+
+
+  const deptSelect = document.getElementById("deptSelect");
+  const doctorSelect = document.getElementById("doctorSelect");
+  const doctorName = document.getElementById("doctorName");
+  const availabilityBadge = document.getElementById("availabilityBadge");
+  const availabilitySelect = document.getElementById("availabilitySelect");
+  const timeslotSelect = document.getElementById("timeslotSelect");
+  const slotPreview = document.getElementById("slotPreview");
+  const patientInput = document.getElementById("patientInput");
+  const bookBtn = document.getElementById("bookBtn");
+  const clearBtn = document.getElementById("clearBtn");
+  const messageDiv = document.getElementById("message");
+
+
+  function init() {
+    populateDoctorOptions();
+    deptSelect.addEventListener("change", onDeptChange);
+    doctorSelect.addEventListener("change", onDoctorChange);
+    availabilitySelect.addEventListener("change", onAvailabilityChange);
+    timeslotSelect.addEventListener("change", refreshPreview);
+    bookBtn.addEventListener("click", onBook);
+    clearBtn.addEventListener("click", clearForm);
+    if (doctorSelect.options.length > 0) {
+      doctorSelect.selectedIndex = 0;
+      onDoctorChange();
+    }
+  }
+
+
+  function populateDoctorOptions() {
+    const dept = deptSelect.value || "all";
+    doctorSelect.innerHTML = "";
+    const filtered = doctors.filter(d => dept === "all" || d.department === dept);
+    filtered.forEach(d => {
+      const opt = document.createElement("option");
+      opt.value = d.id;
+      opt.textContent = `${d.name} (${d.department}) — ${d.available ? "Available" : "Not Available"}`;
+      doctorSelect.appendChild(opt);
+    });
+    if (filtered.length === 0) {
+      const opt = document.createElement("option");
+      opt.value = "";
+      opt.textContent = "No doctors in this department";
+      doctorSelect.appendChild(opt);
+    }
+  }
+
+  function onDeptChange() {
+    populateDoctorOptions();
+    if (doctorSelect.options.length > 0) {
+      doctorSelect.selectedIndex = 0;
+      onDoctorChange();
+    } else {
+      clearDoctorDetails();
+    }
+  }
+
+  function onDoctorChange() {
+    const docId = parseInt(doctorSelect.value);
+    const doc = doctors.find(d => d.id === docId);
+    if (!doc) {
+      clearDoctorDetails();
+      return;
+    }
+    doctorName.textContent = doc.name + ` — ${doc.department}`;
+    setAvailabilityBadge(doc.available);
+    availabilitySelect.value = doc.available ? "available" : "not_available";
+    populateTimeslots(doc);
+    refreshPreview();
+  }
+
+  function clearDoctorDetails() {
+    doctorName.textContent = "—";
+    availabilityBadge.innerHTML = `<span class="status-badge unavailable-badge">Not Selected</span>`;
+    timeslotSelect.innerHTML = `<option value="">-- Select timeslot --</option>`;
+    slotPreview.innerHTML = "";
+  }
+
+  function setAvailabilityBadge(isAvailable) {
+    if (isAvailable) {
+      availabilityBadge.innerHTML = `<span class="status-badge available-badge">Available</span>`;
+    } else {
+      availabilityBadge.innerHTML = `<span class="status-badge unavailable-badge">Not Available</span>`;
+    }
+  }
+
+
+  function onAvailabilityChange() {
+    const docId = parseInt(doctorSelect.value);
+    const doc = doctors.find(d => d.id === docId);
+    if (!doc) return;
+    doc.available = (availabilitySelect.value === "available");
+    setAvailabilityBadge(doc.available);
+    populateDoctorOptions(); // update text in doctor dropdown to reflect availability
+    // keep selection
+    for (let i = 0; i < doctorSelect.options.length; i++) {
+      if (parseInt(doctorSelect.options[i].value) === doc.id) {
+        doctorSelect.selectedIndex = i;
+        break;
+      }
+    }
+    populateTimeslots(doc);
+  }
+
+  function populateTimeslots(doc) {
+    timeslotSelect.innerHTML = "";
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = "-- Select timeslot --";
+    timeslotSelect.appendChild(placeholder);
+
+    doc.timeslots.forEach((ts, idx) => {
+      const opt = document.createElement("option");
+      opt.value = idx; // index in timeslots array
+      opt.textContent = `${ts.time} ${ts.status === "booked" ? " — Booked" : " — Available"}`;
+      if (ts.status === "booked" || !doc.available) {
+        opt.disabled = true;
+      }
+      timeslotSelect.appendChild(opt);
+    });
+  }
+
+  function refreshPreview() {
+    const docId = parseInt(doctorSelect.value);
+    const doc = doctors.find(d => d.id === docId);
+    slotPreview.innerHTML = "";
+    if (!doc) return;
+    doc.timeslots.forEach(ts => {
+      const span = document.createElement("span");
+      span.className = "slot-preview " + (ts.status === "booked" ? "slot-booked" : "slot-available");
+      span.textContent = ts.time + (ts.status === "booked" ? " — Booked" : " — Available");
+      slotPreview.appendChild(span);
+    });
+  }
+
+  function onBook(e) {
+    e.preventDefault();
+    messageDiv.innerHTML = "";
+    const patient = patientInput.value.trim();
+    if (!patient) {
+      showMessage("Please enter patient name or ID.", "warning");
+      return;
+    }
+
+    const docId = parseInt(doctorSelect.value);
+    const doc = doctors.find(d => d.id === docId);
+    if (!doc) {
+      showMessage("Please select a doctor.", "warning");
+      return;
+    }
+
+    if (!doc.available) {
+      showMessage(`${doc.name} is currently not available. Change availability to book a slot.`, "warning");
+      return;
+    }
+
+    const tsIndex = timeslotSelect.value;
+    if (tsIndex === "" || tsIndex === null) {
+      showMessage("Please select an available timeslot.", "warning");
+      return;
+    }
+
+    const slot = doc.timeslots[parseInt(tsIndex)];
+    if (!slot || slot.status === "booked") {
+      showMessage("Selected timeslot is not available.", "danger");
+      populateTimeslots(doc);
+      return;
+    }
+
+    slot.status = "booked";
+    populateTimeslots(doc);
+    refreshPreview();
+
+    const apptStatus = document.getElementById("apptStatus").value;
+    showMessage(`✅ Appointment booked: ${patient} with ${doc.name} at ${slot.time} — Status: ${apptStatus}`, "success");
+    // optionally clear patient input
+    // patientInput.value = "";
+  }
+
+  function showMessage(text, type = "info") {
+    messageDiv.innerHTML = `<div class="alert alert-${type} py-2 my-0">${text}</div>`;
+    setTimeout(() => { if (messageDiv.firstChild) messageDiv.firstChild.remove(); }, 7000);
+  }
+
+  function clearForm() {
+    patientInput.value = "";
+    deptSelect.value = "all";
+    populateDoctorOptions();
+    doctorSelect.selectedIndex = 0;
+    onDoctorChange();
+    document.getElementById("apptStatus").selectedIndex = 0;
+    messageDiv.innerHTML = "";
+  }
+
+  window.addEventListener("DOMContentLoaded", init);
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
